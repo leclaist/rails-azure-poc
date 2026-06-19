@@ -14,5 +14,21 @@ services:
       retries: 10
       start_period: 90s
 
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: bash -c "bin/rails db:prepare && bin/rails server -b 0.0.0.0"
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/rails
+    environment:
+      RAILS_ENV: development
+      DATABASE_URL: oracle-enhanced://system:oracle_poc_secret@oracle:1521/FREEPDB1
+    depends_on:
+      oracle:
+        condition: service_healthy
+
 volumes:
   oracle_data:
