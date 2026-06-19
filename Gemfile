@@ -2,8 +2,12 @@ source "https://rubygems.org"
 
 gem "rails", "~> 8.1.3"
 gem "propshaft"
-gem "activerecord-oracle_enhanced-adapter"
-gem "ruby-oci8"
+# Requires Oracle Instant Client at install time.
+# Scan/lint CI jobs skip this group via BUNDLE_WITHOUT=oracle.
+group :oracle do
+  gem "activerecord-oracle_enhanced-adapter"
+  gem "ruby-oci8"
+end
 gem "puma", ">= 5.0"
 gem "importmap-rails"
 gem "turbo-rails"
