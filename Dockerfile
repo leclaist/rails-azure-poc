@@ -16,7 +16,7 @@ WORKDIR /rails
 
 # Install base packages and Oracle Instant Client basic-lite (runtime)
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libaio1 libjemalloc2 libvips unzip && \
+    apt-get install --no-install-recommends -y curl libaio1t64 libjemalloc2 libvips unzip && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     ARCH=$(uname -m) && \
     PLAT=$([ "$ARCH" = "aarch64" ] && echo "linux.arm64" || echo "linux.x64") && \
