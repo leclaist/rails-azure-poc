@@ -20,7 +20,7 @@ jobs:
           unzip -q /tmp/wallet.zip -d config/oracle/wallet
           rm /tmp/wallet.zip
 
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
