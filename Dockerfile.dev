@@ -1,0 +1,34 @@
+ARG RUBY_VERSION=4.0.5
+FROM docker.io/library/ruby:$RUBY_VERSION-slim
+
+WORKDIR /rails
+
+# Install Oracle Instant Client + build tools
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y \
+      build-essential curl git libaio1t64 libaio-dev libvips libyaml-dev pkg-config unzip && \
+    ARCH=$(uname -m) && \
+    PLAT=$([ "$ARCH" = "aarch64" ] && echo "linux.arm64" || echo "linux.x64") && \
+    curl -fsSL \
+      "https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-basiclite-${PLAT}-21.13.0.0.0dbru.zip" \
+      -o /tmp/ic.zip && \
+    curl -fsSL \
+      "https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-sdk-${PLAT}-21.13.0.0.0dbru.zip" \
+      -o /tmp/ic-sdk.zip && \
+    unzip -q /tmp/ic.zip -d /opt/oracle && \
+    unzip -q /tmp/ic-sdk.zip -d /opt/oracle && \
+    rm /tmp/ic.zip /tmp/ic-sdk.zip && \
+    echo /opt/oracle/instantclient_21_13 > /etc/ld.so.conf.d/oracle-instantclient.conf && \
+    ldconfig && \
+    rm -rf /var/lib/apt/lists /var/cache/apt/archives
+
+ENV ORACLE_HOME=/opt/oracle/instantclient_21_13 \
+    LD_LIBRARY_PATH=/opt/oracle/instantclient_21_13 \
+    BUNDLE_PATH=/usr/local/bundle
+
+# Install gems (source code is mounted at runtime, gems stay in the image)
+COPY Gemfile Gemfile.lock ./
+RUN bundle install
+
+EXPOSE 3000
+CMD ["bin/rails", "server", "-b", "0.0.0.0"]
