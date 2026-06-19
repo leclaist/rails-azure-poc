@@ -17,7 +17,7 @@ jobs:
       branch: ${{ steps.commit.outputs.branch }}
       pr_number: ${{ steps.pr.outputs.number }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -130,7 +130,7 @@ jobs:
       - name: Install packages
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libvips
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.update.outputs.branch }}
 
