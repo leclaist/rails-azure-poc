@@ -1,0 +1,168 @@
+name: Update Ruby and dependencies
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday at 9am UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+      branch: ${{ steps.commit.outputs.branch }}
+      pr_number: ${{ steps.pr.outputs.number }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Audit current dependencies
+        id: pre_audit
+        run: |
+          if bin/bundler-audit 2>&1 | tee /tmp/pre-audit.txt; then
+            echo "status=clean" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=vulnerable" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Find latest stable Ruby
+        id: ruby
+        run: |
+          today=$(date +%Y-%m-%d)
+          latest=$(curl -fsSL "https://endoflife.date/api/ruby.json" | \
+            jq -r --arg today "$today" \
+            '[.[] | select(.eol == false or .eol > $today)] |
+            sort_by(.latest | split(".") | map(tonumber)) | last | .latest')
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "current=$(cat .ruby-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Update .ruby-version
+        run: echo "${{ steps.ruby.outputs.latest }}" > .ruby-version
+
+      - name: Set up updated Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ steps.ruby.outputs.latest }}
+          bundler-cache: false
+
+      - name: Update all gems
+        run: |
+          bundle config set --local frozen false
+          bundle update --all
+          bundle list | grep '* rails ' | awk '{print $3}' | tr -d '()' > /tmp/rails-version.txt
+
+      - name: Audit updated dependencies
+        run: bin/bundler-audit 2>&1 | tee /tmp/post-audit.txt
+
+      - name: Check for changes
+        id: diff
+        run: |
+          git diff --quiet && echo "changed=false" >> "$GITHUB_OUTPUT" || echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        id: commit
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          branch="automated/dependencies-$(date +%Y-%m-%d)"
+          git checkout -b "$branch"
+          git add .ruby-version Gemfile.lock
+          git commit -m "chore: update Ruby to ${{ steps.ruby.outputs.latest }} and gem dependencies"
+          git push --force origin "$branch"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Open pull request
+        id: pr
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          rails_version=$(cat /tmp/rails-version.txt)
+          pre_audit=$(cat /tmp/pre-audit.txt)
+          post_audit=$(cat /tmp/post-audit.txt)
+          branch="${{ steps.commit.outputs.branch }}"
+
+          existing=$(gh pr list --head "$branch" --json number --jq '.[0].number // empty')
+          if [ -z "$existing" ]; then
+            gh pr create \
+              --title "chore: update Ruby ${{ steps.ruby.outputs.current }} → ${{ steps.ruby.outputs.latest }} and gems" \
+              --body "## Automated dependency update
+
+          | | Version |
+          |---|---|
+          | Ruby | ${{ steps.ruby.outputs.current }} → ${{ steps.ruby.outputs.latest }} |
+          | Rails | ${rails_version} |
+
+          ### Pre-update vulnerability audit
+          \`\`\`
+          ${pre_audit}
+          \`\`\`
+
+          ### Post-update vulnerability audit
+          \`\`\`
+          ${post_audit}
+          \`\`\`
+
+          > Gems updated with \`bundle update\` within existing Gemfile constraints."
+          fi
+
+          pr_number=$(gh pr list --head "$branch" --json number --jq '.[0].number')
+          echo "number=$pr_number" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  ci:
+    name: Run CI
+    needs: update
+    if: needs.update.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install packages
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libvips
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.update.outputs.branch }}
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Security scan
+        run: bin/brakeman --no-pager
+
+      - name: Gem CVE scan
+        run: bin/bundler-audit
+
+      - name: JS CVE scan
+        run: bin/importmap audit
+
+      - name: Lint
+        run: bin/rubocop -f github
+
+      - name: Tests
+        env:
+          RAILS_ENV: test
+        run: bin/rails db:test:prepare test
+
+  merge:
+    name: Merge to main
+    needs: [update, ci]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge pull request
+        run: gh pr merge "${{ needs.update.outputs.pr_number }}" --squash --delete-branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
