@@ -13,6 +13,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Install Oracle Instant Client
+        run: |
+          sudo apt-get install -y --no-install-recommends libaio1 unzip
+          curl -fsSL https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-basiclite-linux.x64-21.13.0.0.0dbru.zip -o /tmp/ic.zip
+          curl -fsSL https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-sdk-linux.x64-21.13.0.0.0dbru.zip -o /tmp/ic-sdk.zip
+          sudo unzip -q /tmp/ic.zip -d /opt/oracle
+          sudo unzip -q /tmp/ic-sdk.zip -d /opt/oracle
+          rm /tmp/ic.zip /tmp/ic-sdk.zip
+          echo /opt/oracle/instantclient_21_13 | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf
+          sudo ldconfig
+          echo "ORACLE_HOME=/opt/oracle/instantclient_21_13" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/opt/oracle/instantclient_21_13" >> $GITHUB_ENV
+
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -20,16 +33,29 @@ jobs:
 
       - name: Scan for common Rails security vulnerabilities using static analysis
         run: bin/brakeman --no-pager
-      
+
       - name: Scan for known security vulnerabilities in gems used
         run: bin/bundler-audit
-      
+
   scan_js:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+
+      - name: Install Oracle Instant Client
+        run: |
+          sudo apt-get install -y --no-install-recommends libaio1 unzip
+          curl -fsSL https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-basiclite-linux.x64-21.13.0.0.0dbru.zip -o /tmp/ic.zip
+          curl -fsSL https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-sdk-linux.x64-21.13.0.0.0dbru.zip -o /tmp/ic-sdk.zip
+          sudo unzip -q /tmp/ic.zip -d /opt/oracle
+          sudo unzip -q /tmp/ic-sdk.zip -d /opt/oracle
+          rm /tmp/ic.zip /tmp/ic-sdk.zip
+          echo /opt/oracle/instantclient_21_13 | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf
+          sudo ldconfig
+          echo "ORACLE_HOME=/opt/oracle/instantclient_21_13" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/opt/oracle/instantclient_21_13" >> $GITHUB_ENV
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -46,6 +72,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+
+      - name: Install Oracle Instant Client
+        run: |
+          sudo apt-get install -y --no-install-recommends libaio1 unzip
+          curl -fsSL https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-basiclite-linux.x64-21.13.0.0.0dbru.zip -o /tmp/ic.zip
+          curl -fsSL https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-sdk-linux.x64-21.13.0.0.0dbru.zip -o /tmp/ic-sdk.zip
+          sudo unzip -q /tmp/ic.zip -d /opt/oracle
+          sudo unzip -q /tmp/ic-sdk.zip -d /opt/oracle
+          rm /tmp/ic.zip /tmp/ic-sdk.zip
+          echo /opt/oracle/instantclient_21_13 | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf
+          sudo ldconfig
+          echo "ORACLE_HOME=/opt/oracle/instantclient_21_13" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/opt/oracle/instantclient_21_13" >> $GITHUB_ENV
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -68,18 +107,39 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    # services:
-    #  redis:
-    #    image: valkey/valkey:8
-    #    ports:
-    #      - 6379:6379
-    #    options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+    services:
+      oracle:
+        image: gvenzl/oracle-free:23-slim-faststart
+        env:
+          ORACLE_PASSWORD: oracle_poc_secret
+        ports:
+          - 1521:1521
+        options: >-
+          --health-cmd healthcheck.sh
+          --health-interval 30s
+          --health-timeout 10s
+          --health-retries 10
+          --health-start-period 120s
+
     steps:
       - name: Install packages
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libvips
 
       - name: Checkout code
         uses: actions/checkout@v6
+
+      - name: Install Oracle Instant Client
+        run: |
+          sudo apt-get install -y --no-install-recommends libaio1 unzip
+          curl -fsSL https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-basiclite-linux.x64-21.13.0.0.0dbru.zip -o /tmp/ic.zip
+          curl -fsSL https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-sdk-linux.x64-21.13.0.0.0dbru.zip -o /tmp/ic-sdk.zip
+          sudo unzip -q /tmp/ic.zip -d /opt/oracle
+          sudo unzip -q /tmp/ic-sdk.zip -d /opt/oracle
+          rm /tmp/ic.zip /tmp/ic-sdk.zip
+          echo /opt/oracle/instantclient_21_13 | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf
+          sudo ldconfig
+          echo "ORACLE_HOME=/opt/oracle/instantclient_21_13" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/opt/oracle/instantclient_21_13" >> $GITHUB_ENV
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -89,7 +149,5 @@ jobs:
       - name: Run tests
         env:
           RAILS_ENV: test
-          # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
-          # REDIS_URL: redis://localhost:6379/0
+          DATABASE_URL: oracle-enhanced://system:oracle_poc_secret@localhost:1521/FREEPDB1
         run: bin/rails db:test:prepare test
-

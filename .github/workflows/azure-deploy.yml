@@ -13,6 +13,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Restore Oracle wallet
+        run: |
+          mkdir -p config/oracle/wallet
+          echo "${{ secrets.ORACLE_WALLET_B64 }}" | base64 -d > /tmp/wallet.zip
+          unzip -q /tmp/wallet.zip -d config/oracle/wallet
+          rm /tmp/wallet.zip
+
       - uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
