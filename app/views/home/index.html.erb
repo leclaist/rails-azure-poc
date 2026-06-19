@@ -1,2 +1,24 @@
 <h1>Hello, World!</h1>
 <p>rails-azure-poc is running.</p>
+
+<h2>Oracle DB — Page Visits</h2>
+<p>Total visits: <strong><%= @total_visits %></strong></p>
+
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>IP</th>
+      <th>Time</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @recent_visits.each do |visit| %>
+      <tr>
+        <td><%= visit.id %></td>
+        <td><%= visit.ip_address %></td>
+        <td><%= visit.created_at.strftime("%Y-%m-%d %H:%M:%S UTC") %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
