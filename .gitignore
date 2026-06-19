@@ -1,0 +1,31 @@
+# Environment files
+.env*
+!.env.example
+
+# Bundler
+/.bundle
+
+# Logs and temp files
+log/*
+tmp/*
+!log/.keep
+!tmp/.keep
+
+# Uploaded files
+storage/*
+!storage/.keep
+
+# Credentials
+config/master.key
+config/credentials/*.key
+
+# macOS
+.DS_Store
+.idea/
+
+# Terraform (secrets and generated state)
+infra/*.tfvars
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.*
+infra/.terraform.lock.hcl
