@@ -14,10 +14,18 @@ FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 # Rails app lives here
 WORKDIR /rails
 
-# Install base packages
+# Install base packages and Oracle Instant Client basic-lite (runtime)
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips sqlite3 && \
+    apt-get install --no-install-recommends -y curl libaio1 libjemalloc2 libvips unzip && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
+    ARCH=$(uname -m) && \
+    PLAT=$([ "$ARCH" = "aarch64" ] && echo "linux.arm64" || echo "linux.x64") && \
+    curl -fsSL \
+      "https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-basiclite-${PLAT}-21.13.0.0.0dbru.zip" \
+      -o /tmp/ic.zip && \
+    unzip -q /tmp/ic.zip -d /opt/oracle && rm /tmp/ic.zip && \
+    echo /opt/oracle/instantclient_21_13 > /etc/ld.so.conf.d/oracle-instantclient.conf && \
+    ldconfig && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Set production environment variables and enable jemalloc for reduced memory usage and latency.
@@ -25,14 +33,22 @@ ENV RAILS_ENV="production" \
     BUNDLE_DEPLOYMENT="1" \
     BUNDLE_PATH="/usr/local/bundle" \
     BUNDLE_WITHOUT="development" \
-    LD_PRELOAD="/usr/local/lib/libjemalloc.so"
+    LD_PRELOAD="/usr/local/lib/libjemalloc.so" \
+    ORACLE_HOME="/opt/oracle/instantclient_21_13" \
+    LD_LIBRARY_PATH="/opt/oracle/instantclient_21_13"
 
 # Throw-away build stage to reduce size of final image
 FROM base AS build
 
-# Install packages needed to build gems
+# Install packages needed to build gems, plus Oracle Instant Client SDK (headers for ruby-oci8)
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential git libvips libyaml-dev pkg-config && \
+    apt-get install --no-install-recommends -y build-essential git libaio-dev libvips libyaml-dev pkg-config && \
+    ARCH=$(uname -m) && \
+    PLAT=$([ "$ARCH" = "aarch64" ] && echo "linux.arm64" || echo "linux.x64") && \
+    curl -fsSL \
+      "https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-sdk-${PLAT}-21.13.0.0.0dbru.zip" \
+      -o /tmp/ic-sdk.zip && \
+    unzip -q /tmp/ic-sdk.zip -d /opt/oracle && rm /tmp/ic-sdk.zip && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Install application gems

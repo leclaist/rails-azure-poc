@@ -142,6 +142,11 @@ resource "azurerm_container_app" "main" {
     value = var.rails_master_key
   }
 
+  secret {
+    name  = "oracle-database-url"
+    value = var.oracle_database_url
+  }
+
   template {
     min_replicas = 1
     max_replicas = 1
@@ -153,8 +158,13 @@ resource "azurerm_container_app" "main" {
       memory = "1Gi"
 
       env {
-        name  = "DATABASE_URL"
-        value = "sqlite3:///rails/db/production.sqlite3"
+        name        = "DATABASE_URL"
+        secret_name = "oracle-database-url"
+      }
+
+      env {
+        name  = "TNS_ADMIN"
+        value = "/rails/config/oracle/wallet"
       }
 
       env {

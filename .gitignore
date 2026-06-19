@@ -18,6 +18,7 @@ storage/*
 # Credentials
 config/master.key
 config/credentials/*.key
+config/oracle/
 
 # macOS
 .DS_Store
