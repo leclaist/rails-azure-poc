@@ -19,33 +19,42 @@ https://rails-azure-poc.nicewave-9cd6306b.eastus2.azurecontainerapps.io
 
 ### Prerequisites
 
-[Oracle Instant Client 21.13](https://www.oracle.com/database/technologies/instant-client/linux-x86-64-downloads.html) must be installed locally for `bundle install` to compile `ruby-oci8`. Set these after installing:
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose)
 
-```bash
-export ORACLE_HOME=/opt/oracle/instantclient_21_13
-export LD_LIBRARY_PATH=/opt/oracle/instantclient_21_13
-```
+That's it. Oracle Instant Client is downloaded and compiled inside the Docker image — no local Oracle installation required. Apple Silicon Macs run the container via Rosetta (the image is `linux/amd64`).
 
 ### Local development
 
-Start the local Oracle Free database, then run the app:
-
 ```bash
-docker-compose up oracle -d   # starts Oracle Free 23ai on localhost:1521
-bundle install
-bin/rails db:prepare          # creates the visits table
-bin/dev
+docker-compose up
 ```
 
+On first run this builds the `web` image (~3–5 min — downloads Oracle Instant Client 21.13 and installs gems), then waits for Oracle Free to be healthy before running migrations and starting the server.
+
+The app is available at **http://localhost:3000**.
+
 The default `DATABASE_URL` in `config/database.yml` points to the local Oracle Free container (`system` / `oracle_poc_secret` / `FREEPDB1`). Override it with `DATABASE_URL=...` to point at OCI ADB instead.
+
+Subsequent starts skip the build and are fast:
+
+```bash
+docker-compose up
+```
+
+To rebuild the image (e.g. after changing `Gemfile` or `Dockerfile.dev`):
+
+```bash
+docker-compose build web
+docker-compose up
+```
 
 ## Running tests
 
 Tests use the same Oracle Free container:
 
 ```bash
-docker-compose up oracle -d
-bin/rails test
+docker-compose up oracle -d   # if not already running
+docker-compose run --rm web bin/rails test
 ```
 
 The suite covers:
