@@ -30,3 +30,7 @@ infra/.terraform/
 infra/*.tfstate
 infra/*.tfstate.*
 infra/.terraform.lock.hcl
+
+# Ignore key files for decrypting credentials and more.
+/config/*.key
+
