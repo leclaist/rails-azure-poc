@@ -18,6 +18,8 @@ RUN apt-get update -qq && \
     unzip -q /tmp/ic.zip -d /opt/oracle && \
     unzip -q /tmp/ic-sdk.zip -d /opt/oracle && \
     rm /tmp/ic.zip /tmp/ic-sdk.zip && \
+    ln -s /opt/oracle/instantclient_21_13/sdk/include /opt/oracle/instantclient_21_13/include && \
+    ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1 && \
     echo /opt/oracle/instantclient_21_13 > /etc/ld.so.conf.d/oracle-instantclient.conf && \
     ldconfig && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
@@ -28,7 +30,11 @@ ENV ORACLE_HOME=/opt/oracle/instantclient_21_13 \
 
 # Install gems (source code is mounted at runtime, gems stay in the image)
 COPY Gemfile Gemfile.lock ./
-RUN bundle install
+RUN bundle config set build.ruby-oci8 \
+      "--with-instant-client-dir=/opt/oracle/instantclient_21_13 \
+       --with-instant-client-include=/opt/oracle/instantclient_21_13/sdk/include \
+       --with-instant-client-lib=/opt/oracle/instantclient_21_13" && \
+    bundle install
 
 EXPOSE 3000
 CMD ["bin/rails", "server", "-b", "0.0.0.0"]
