@@ -44,7 +44,7 @@ FROM base AS build
 
 # Install packages needed to build gems, plus Oracle Instant Client SDK (headers for ruby-oci8)
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential git libaio-dev libvips libyaml-dev pkg-config && \
+    apt-get install --no-install-recommends -y build-essential git libaio-dev libyaml-dev pkg-config && \
     ARCH=$(uname -m) && \
     PLAT=$([ "$ARCH" = "aarch64" ] && echo "linux.arm64" || echo "linux.x64") && \
     curl -fsSL \
@@ -52,7 +52,6 @@ RUN apt-get update -qq && \
       -o /tmp/ic-sdk.zip && \
     unzip -q /tmp/ic-sdk.zip -d /opt/oracle && rm /tmp/ic-sdk.zip && \
     ln -s /opt/oracle/instantclient_21_13/sdk/include /opt/oracle/instantclient_21_13/include && \
-    ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1 && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Install application gems
