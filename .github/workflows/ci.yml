@@ -121,4 +121,4 @@ jobs:
           RAILS_ENV: test
           DATABASE_URL: oracle-enhanced://system:oracle_poc_secret@localhost:1521/FREEPDB1
           NLS_LANG: AMERICAN_AMERICA.AL32UTF8
-        run: bin/rails db:migrate test
+        run: bin/rails test
