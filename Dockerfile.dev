@@ -1,19 +1,19 @@
-ARG RUBY_VERSION=4.0.5
-FROM docker.io/library/ruby:$RUBY_VERSION-slim
+ARG RUBY_VERSION=3.4.9
+# Force x86_64 — Oracle Instant Client 21.x has no ARM64 package.
+# Runs via Rosetta on Apple Silicon; production Azure is also x86_64.
+FROM --platform=linux/amd64 docker.io/library/ruby:$RUBY_VERSION-slim
 
 WORKDIR /rails
 
 # Install Oracle Instant Client + build tools
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
-      build-essential curl git libaio1t64 libaio-dev libvips libyaml-dev pkg-config unzip && \
-    ARCH=$(uname -m) && \
-    PLAT=$([ "$ARCH" = "aarch64" ] && echo "linux.arm64" || echo "linux.x64") && \
+      build-essential ca-certificates curl git libaio1t64 libaio-dev libvips libyaml-dev pkg-config unzip && \
     curl -fsSL \
-      "https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-basiclite-${PLAT}-21.13.0.0.0dbru.zip" \
+      "https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-basiclite-linux.x64-21.13.0.0.0dbru.zip" \
       -o /tmp/ic.zip && \
     curl -fsSL \
-      "https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-sdk-${PLAT}-21.13.0.0.0dbru.zip" \
+      "https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-sdk-linux.x64-21.13.0.0.0dbru.zip" \
       -o /tmp/ic-sdk.zip && \
     unzip -q /tmp/ic.zip -d /opt/oracle && \
     unzip -q /tmp/ic-sdk.zip -d /opt/oracle && \

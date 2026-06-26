@@ -8,7 +8,7 @@
 # For a containerized dev environment, see Dev Containers: https://guides.rubyonrails.org/getting_started_with_devcontainer.html
 
 # Make sure RUBY_VERSION matches the Ruby version in .ruby-version
-ARG RUBY_VERSION=4.0.5
+ARG RUBY_VERSION=3.4.9
 FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 
 # Rails app lives here
@@ -16,7 +16,7 @@ WORKDIR /rails
 
 # Install base packages and Oracle Instant Client basic-lite (runtime)
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libaio1t64 libjemalloc2 libvips unzip && \
+    apt-get install --no-install-recommends -y ca-certificates curl libaio1t64 libjemalloc2 libvips unzip && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     ARCH=$(uname -m) && \
     PLAT=$([ "$ARCH" = "aarch64" ] && echo "linux.arm64" || echo "linux.x64") && \
