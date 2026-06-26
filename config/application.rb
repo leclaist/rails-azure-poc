@@ -2,6 +2,18 @@ require_relative "boot"
 
 require "rails/all"
 
+# Ruby's URI parser doesn't know the oracle-enhanced scheme; without
+# registration it treats user:pass@host as a "registry" part and raises
+# URI::InvalidURIError when DATABASE_URL is set. Register it here,
+# before any Railtie initializer processes DATABASE_URL.
+require "uri"
+module URI
+  class OracleEnhanced < Generic
+    DEFAULT_PORT = 1521
+  end
+end
+URI.register_scheme("ORACLE-ENHANCED", URI::OracleEnhanced)
+
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups, :oracle)
