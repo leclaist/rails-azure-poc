@@ -50,6 +50,7 @@ RUN apt-get update -qq && \
       -o /tmp/ic-sdk.zip && \
     unzip -q /tmp/ic-sdk.zip -d /opt/oracle && rm /tmp/ic-sdk.zip && \
     ln -s /opt/oracle/instantclient_21_13/sdk/include /opt/oracle/instantclient_21_13/include && \
+    ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1 && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Install application gems
