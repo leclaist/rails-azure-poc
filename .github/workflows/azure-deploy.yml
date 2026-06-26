@@ -1,7 +1,10 @@
 name: Deploy to Azure
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
     branches:
       - main
 
@@ -10,6 +13,7 @@ jobs:
     name: Deploy to Azure Container Apps
     runs-on: ubuntu-latest
     concurrency: deploy-azure
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v6
 
