@@ -49,13 +49,18 @@ RUN apt-get update -qq && \
       "https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-sdk-${PLAT}-21.13.0.0.0dbru.zip" \
       -o /tmp/ic-sdk.zip && \
     unzip -q /tmp/ic-sdk.zip -d /opt/oracle && rm /tmp/ic-sdk.zip && \
+    ln -s /opt/oracle/instantclient_21_13/sdk/include /opt/oracle/instantclient_21_13/include && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Install application gems
 COPY vendor/* ./vendor/
 COPY Gemfile Gemfile.lock ./
 
-RUN bundle install && \
+RUN bundle config set build.ruby-oci8 \
+      "--with-instant-client-dir=/opt/oracle/instantclient_21_13 \
+       --with-instant-client-include=/opt/oracle/instantclient_21_13/sdk/include \
+       --with-instant-client-lib=/opt/oracle/instantclient_21_13" && \
+    bundle install && \
     rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
     # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
     bundle exec bootsnap precompile -j 1 --gemfile
