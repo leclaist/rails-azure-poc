@@ -37,23 +37,73 @@ jobs:
             .
 
       - name: Deploy to Container Apps
+        id: deploy
         run: |
-          az containerapp update \
+          REVISION=$(az containerapp update \
             --name ${{ vars.APP_NAME }} \
             --resource-group ${{ vars.RESOURCE_GROUP }} \
-            --image ${{ vars.ACR_NAME }}.azurecr.io/${{ vars.APP_NAME }}:${{ github.sha }}
+            --image ${{ vars.ACR_NAME }}.azurecr.io/${{ vars.APP_NAME }}:${{ github.sha }} \
+            --query "properties.latestRevisionName" \
+            --output tsv)
+          echo "revision=$REVISION" >> $GITHUB_OUTPUT
+          echo "Deployed revision: $REVISION"
 
       - name: Smoke test
+        env:
+          APP: ${{ vars.APP_NAME }}
+          RG: ${{ vars.RESOURCE_GROUP }}
+          HOST: ${{ vars.APP_HOSTNAME }}
+          REVISION: ${{ steps.deploy.outputs.revision }}
         run: |
-          echo "Waiting for Azure to become healthy..."
+          echo "=== Waiting for revision $REVISION to reach Running state ==="
+          for i in $(seq 1 20); do
+            state=$(az containerapp revision show \
+              --name "$APP" --resource-group "$RG" --revision "$REVISION" \
+              --query "properties.runningState" --output tsv 2>/dev/null || echo "unknown")
+            echo "Attempt $i: revision state = $state"
+            case "$state" in
+              Running) echo "Revision is Running"; break ;;
+              Stopped|Failed|Degraded)
+                echo "=== Revision entered failed state: $state ==="
+                az containerapp logs show --name "$APP" --resource-group "$RG" \
+                  --revision "$REVISION" --tail 100 2>&1 \
+                  | grep -iE "(Error|FATAL|Exception|ORA-)" \
+                  | sed 's|://[^:]*:[^@]*@|://[REDACTED]:[REDACTED]@|g' || true
+                exit 1
+                ;;
+            esac
+            if [ "$i" = "20" ]; then
+              echo "Timed out waiting for revision to become Running"
+              az containerapp logs show --name "$APP" --resource-group "$RG" \
+                --revision "$REVISION" --tail 100 2>&1 \
+                | grep -iE "(Error|FATAL|Exception|ORA-)" \
+                | sed 's|://[^:]*:[^@]*@|://[REDACTED]:[REDACTED]@|g' || true
+              exit 1
+            fi
+            sleep 15
+          done
+
+          echo "=== Scanning container logs for revision $REVISION ==="
+          LOGS=$(az containerapp logs show --name "$APP" --resource-group "$RG" \
+            --revision "$REVISION" --tail 150 2>&1 || true)
+          ERROR_LINES=$(echo "$LOGS" | grep -iE "(LoadError|RuntimeError|URI::Invalid|ORA-[0-9]+|Errno::|FATAL|Error initializing|check_load_error)" || true)
+          if [ -n "$ERROR_LINES" ]; then
+            echo "ERROR: Found error patterns in container logs:"
+            # Redact credentials from any URL-shaped strings before printing
+            echo "$ERROR_LINES" | sed 's|://[^:]*:[^@]*@|://[REDACTED]:[REDACTED]@|g'
+            exit 1
+          fi
+          echo "No error patterns found in container logs"
+
+          echo "=== HTTP smoke test ==="
           for i in $(seq 1 10); do
-            status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 45 https://${{ vars.APP_HOSTNAME }} || echo "000")
+            status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 45 "https://$HOST" || echo "000")
             echo "Attempt $i: HTTP $status"
             if [ "$status" = "200" ]; then
-              echo "Azure deployment is healthy"
+              echo "Deployment is healthy"
               exit 0
             fi
             sleep 15
           done
-          echo "Azure failed to return 200 after 10 attempts"
+          echo "Failed to return HTTP 200 after 10 attempts"
           exit 1
