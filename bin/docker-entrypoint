@@ -2,6 +2,9 @@
 
 # If running the rails server then create or migrate existing database
 if [ "$1" == "./bin/rails" ] && [ "$2" == "server" ]; then
+  echo "=== Oracle wallet contents ==="
+  ls -la "${TNS_ADMIN}" 2>&1 || echo "WARNING: wallet directory missing or empty"
+  echo "=== DB_SERVICE: ${DB_SERVICE} ==="
   ./bin/rails db:migrate
 fi
 
