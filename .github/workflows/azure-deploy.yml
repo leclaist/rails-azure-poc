@@ -73,7 +73,7 @@ jobs:
               --query "properties.runningState" --output tsv 2>/dev/null || echo "unknown")
             echo "Attempt $i: revision state = $state"
             case "$state" in
-              Running) echo "Revision is Running"; break ;;
+              Running|RunningAtMaxScale) echo "Revision is $state"; break ;;
               Stopped|Failed|Degraded)
                 echo "=== Revision entered failed state: $state ==="
                 az containerapp logs show --name "$APP" --resource-group "$RG" \
