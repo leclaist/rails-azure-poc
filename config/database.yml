@@ -5,11 +5,11 @@ default: &default
 # OCI ADB: oracle-enhanced://ADMIN:pass@hostname:1521/dbname_high
 development:
   <<: *default
-  url: <%= ENV.fetch("DATABASE_URL", "oracle-enhanced://system:oracle_poc_secret@localhost:1521/FREEPDB1") %>
+  url: <%= ENV.fetch("DATABASE_URL", "oracle-enhanced://rails_app:rails_app_secret@localhost:1521/FREEPDB1") %>
 
 test:
   <<: *default
-  url: <%= ENV.fetch("DATABASE_URL", "oracle-enhanced://system:oracle_poc_secret@localhost:1521/FREEPDB1") %>
+  url: <%= ENV.fetch("DATABASE_URL", "oracle-enhanced://rails_app:rails_app_secret@localhost:1521/FREEPDB1") %>
 
 production:
   <<: *default

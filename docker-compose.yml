@@ -3,6 +3,8 @@ services:
     image: gvenzl/oracle-free:23-slim-faststart
     environment:
       ORACLE_PASSWORD: oracle_poc_secret
+      APP_USER: rails_app
+      APP_USER_PASSWORD: rails_app_secret
     ports:
       - "1521:1521"
     volumes:
@@ -25,7 +27,7 @@ services:
       - .:/rails
     environment:
       RAILS_ENV: development
-      DATABASE_URL: oracle-enhanced://system:oracle_poc_secret@oracle:1521/FREEPDB1
+      DATABASE_URL: oracle-enhanced://rails_app:rails_app_secret@oracle:1521/FREEPDB1
     depends_on:
       oracle:
         condition: service_healthy
@@ -39,7 +41,7 @@ services:
       - .:/rails
     environment:
       RAILS_ENV: test
-      DATABASE_URL: oracle-enhanced://system:oracle_poc_secret@oracle:1521/FREEPDB1
+      DATABASE_URL: oracle-enhanced://rails_app:rails_app_secret@oracle:1521/FREEPDB1
     depends_on:
       oracle:
         condition: service_healthy

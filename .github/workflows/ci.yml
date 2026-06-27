@@ -82,6 +82,8 @@ jobs:
         image: gvenzl/oracle-free:23-slim-faststart
         env:
           ORACLE_PASSWORD: oracle_poc_secret
+          APP_USER: rails_app
+          APP_USER_PASSWORD: rails_app_secret
         ports:
           - 1521:1521
         options: >-
@@ -122,6 +124,6 @@ jobs:
       - name: Run tests
         env:
           RAILS_ENV: test
-          DATABASE_URL: oracle-enhanced://system:oracle_poc_secret@localhost:1521/FREEPDB1
+          DATABASE_URL: oracle-enhanced://rails_app:rails_app_secret@localhost:1521/FREEPDB1
           NLS_LANG: AMERICAN_AMERICA.AL32UTF8
         run: bin/rails test
