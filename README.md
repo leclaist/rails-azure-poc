@@ -50,16 +50,20 @@ docker-compose up
 
 ## Running tests
 
-Tests use the same Oracle Free container:
+Tests run inside Docker against the local Oracle Free container — no local Oracle Instant Client required.
 
 ```bash
-docker-compose up oracle -d   # if not already running
-docker-compose run --rm web bin/rails test
+docker compose --profile test run --rm test
 ```
+
+This starts the Oracle container (if not already running), waits for it to be healthy, runs migrations in the test environment, then executes the suite.
 
 The suite covers:
 
-- `test/controllers/home_controller_test.rb` — asserts the root route returns 200 and renders "Hello, World!"
+- Root route returns 200 and renders "Hello, World!"
+- Each request creates a `Visit` record in Oracle
+- The total visit count displayed on the page matches the DB count
+- The recent visits table renders the request IP
 
 ## Oracle setup
 
