@@ -4,6 +4,9 @@ on:
   pull_request:
   push:
     branches: [ main ]
+    paths-ignore:
+      - "**.md"
+      - ".github/CODEOWNERS"
 
 jobs:
   scan_ruby:
