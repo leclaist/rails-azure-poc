@@ -33,7 +33,9 @@ On first run this builds the `web` image (~3–5 min — downloads Oracle Instan
 
 The app is available at **http://localhost:3000**.
 
-The default `DATABASE_URL` in `config/database.yml` points to the local Oracle Free container (`system` / `oracle_poc_secret` / `FREEPDB1`). Override it with `DATABASE_URL=...` to point at OCI ADB instead.
+The default `DATABASE_URL` in `config/database.yml` points to the local Oracle Free container (`rails_app` / `rails_app_secret` / `FREEPDB1`). Override it with `DATABASE_URL=...` to point at OCI ADB instead.
+
+> **Existing volume?** If you have an `oracle_data` volume from before the `rails_app` user was introduced, recreate it: `docker compose down -v && docker compose up`
 
 Subsequent starts skip the build and are fast:
 
