@@ -75,7 +75,7 @@ COPY . .
 RUN bundle exec bootsnap precompile -j 1 app/ lib/
 
 # Precompiling assets for production without requiring secret RAILS_MASTER_KEY or live DB
-RUN SECRET_KEY_BASE_DUMMY=1 DATABASE_URL=oracle-enhanced://dummy:dummy@localhost/dummy ./bin/rails assets:precompile
+RUN SECRET_KEY_BASE_DUMMY=1 ./bin/rails assets:precompile
 
 
 

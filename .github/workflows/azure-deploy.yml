@@ -38,11 +38,19 @@ jobs:
 
       - name: Deploy to Container Apps
         id: deploy
+        env:
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_SERVICE: ${{ secrets.DB_SERVICE }}
         run: |
           REVISION=$(az containerapp update \
             --name ${{ vars.APP_NAME }} \
             --resource-group ${{ vars.RESOURCE_GROUP }} \
             --image ${{ vars.ACR_NAME }}.azurecr.io/${{ vars.APP_NAME }}:${{ github.sha }} \
+            --set-env-vars \
+              "DB_USERNAME=${DB_USERNAME}" \
+              "DB_PASSWORD=${DB_PASSWORD}" \
+              "DB_SERVICE=${DB_SERVICE}" \
             --query "properties.latestRevisionName" \
             --output tsv)
           echo "revision=$REVISION" >> $GITHUB_OUTPUT
@@ -68,7 +76,8 @@ jobs:
                 az containerapp logs show --name "$APP" --resource-group "$RG" \
                   --revision "$REVISION" --tail 100 2>&1 \
                   | grep -iE "(Error|FATAL|Exception|ORA-)" \
-                  | sed 's|://[^:]*:[^@]*@|://[REDACTED]:[REDACTED]@|g' || true
+                  | sed -e 's|://[^:]*:[^@]*@|://[REDACTED]:[REDACTED]@|g' \
+                  -e 's|[A-Za-z][A-Za-z0-9_.+-]*:[^@ ]*@|[REDACTED]:[REDACTED]@|g' || true
                 exit 1
                 ;;
             esac
@@ -77,7 +86,8 @@ jobs:
               az containerapp logs show --name "$APP" --resource-group "$RG" \
                 --revision "$REVISION" --tail 100 2>&1 \
                 | grep -iE "(Error|FATAL|Exception|ORA-)" \
-                | sed 's|://[^:]*:[^@]*@|://[REDACTED]:[REDACTED]@|g' || true
+                | sed -e 's|://[^:]*:[^@]*@|://[REDACTED]:[REDACTED]@|g' \
+                  -e 's|[A-Za-z][A-Za-z0-9_.+-]*:[^@ ]*@|[REDACTED]:[REDACTED]@|g' || true
               exit 1
             fi
             sleep 15
@@ -89,8 +99,9 @@ jobs:
           ERROR_LINES=$(echo "$LOGS" | grep -iE "(LoadError|RuntimeError|URI::Invalid|ORA-[0-9]+|Errno::|FATAL|Error initializing|check_load_error)" || true)
           if [ -n "$ERROR_LINES" ]; then
             echo "ERROR: Found error patterns in container logs:"
-            # Redact credentials from any URL-shaped strings before printing
-            echo "$ERROR_LINES" | sed 's|://[^:]*:[^@]*@|://[REDACTED]:[REDACTED]@|g'
+            # Redact credentials — covers both url://user:pass@host and bare user:pass@ formats
+            echo "$ERROR_LINES" | sed -e 's|://[^:]*:[^@]*@|://[REDACTED]:[REDACTED]@|g' \
+                  -e 's|[A-Za-z][A-Za-z0-9_.+-]*:[^@ ]*@|[REDACTED]:[REDACTED]@|g'
             exit 1
           fi
           echo "No error patterns found in container logs"
