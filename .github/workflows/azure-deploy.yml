@@ -42,6 +42,7 @@ jobs:
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_SERVICE: ${{ secrets.DB_SERVICE }}
+          RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
         run: |
           REVISION=$(az containerapp update \
             --name ${{ vars.APP_NAME }} \
@@ -51,6 +52,7 @@ jobs:
               "DB_USERNAME=${DB_USERNAME}" \
               "DB_PASSWORD=${DB_PASSWORD}" \
               "DB_SERVICE=${DB_SERVICE}" \
+              "RAILS_MASTER_KEY=${RAILS_MASTER_KEY}" \
             --remove-env-vars DATABASE_URL \
             --query "properties.latestRevisionName" \
             --output tsv)

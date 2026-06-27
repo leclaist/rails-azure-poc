@@ -37,7 +37,8 @@ ENV RAILS_ENV="production" \
     LD_PRELOAD="/usr/local/lib/libjemalloc.so" \
     ORACLE_HOME="/opt/oracle/instantclient_21_13" \
     LD_LIBRARY_PATH="/opt/oracle/instantclient_21_13" \
-    TNS_ADMIN="/rails/config/oracle/wallet"
+    TNS_ADMIN="/rails/config/oracle/wallet" \
+    NLS_LANG="AMERICAN_AMERICA.AL32UTF8"
 
 # Throw-away build stage to reduce size of final image
 FROM base AS build
