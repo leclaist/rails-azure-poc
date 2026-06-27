@@ -51,6 +51,7 @@ jobs:
               "DB_USERNAME=${DB_USERNAME}" \
               "DB_PASSWORD=${DB_PASSWORD}" \
               "DB_SERVICE=${DB_SERVICE}" \
+            --remove-env-vars DATABASE_URL \
             --query "properties.latestRevisionName" \
             --output tsv)
           echo "revision=$REVISION" >> $GITHUB_OUTPUT
