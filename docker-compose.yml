@@ -30,5 +30,21 @@ services:
       oracle:
         condition: service_healthy
 
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: bash -c "bin/rails db:prepare && bin/rails test"
+    volumes:
+      - .:/rails
+    environment:
+      RAILS_ENV: test
+      DATABASE_URL: oracle-enhanced://system:oracle_poc_secret@oracle:1521/FREEPDB1
+    depends_on:
+      oracle:
+        condition: service_healthy
+    profiles:
+      - test
+
 volumes:
   oracle_data:
