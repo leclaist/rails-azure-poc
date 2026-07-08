@@ -43,10 +43,10 @@ All environments use `oracle_enhanced` adapter. No SQLite anywhere.
 
 Two workflows run in parallel on every push to `main`:
 
-- **CI** (`.github/workflows/ci.yml`): parallel jobs for `scan_ruby`, `scan_js`, `lint` (all with `BUNDLE_WITHOUT=oracle`), and `test` (with Oracle service container + Instant Client install). If `bundler-audit` finds a CVE on a push to `main`, `scan_ruby` automatically dispatches the `update-dependencies` workflow to attempt remediation, then fails to block the deploy.
+- **CI** (`.github/workflows/ci.yml`): parallel jobs for `scan_ruby`, `scan_js`, `lint` (all with `BUNDLE_WITHOUT=oracle`), and `test` (with Oracle service container + Instant Client install). If `bundler-audit` finds a CVE on a push to `main`, `scan_ruby` extracts the vulnerable gem names from the audit output and dispatches `update-dependencies` with those specific gems, then fails to block the deploy.
 - **Deploy to Azure** (`.github/workflows/azure-deploy.yml`): triggers on CI success — restores wallet from `ORACLE_WALLET_B64` secret → `az acr build` → `az containerapp update` → smoke test (waits for Running state, checks logs for ORA- errors, HTTP 200)
 
-A third workflow, **Update Ruby and dependencies** (`.github/workflows/update-dependencies.yml`), runs every Monday: bumps `.ruby-version`, runs `bundle update --all` (with Instant Client installed), opens a PR, then runs the full CI job from the `ci` workflow before auto-merging.
+A third workflow, **Update Ruby and dependencies** (`.github/workflows/update-dependencies.yml`), accepts an optional `gems` input (space-separated gem names). When `gems` is set (triggered by a CVE): skips the Ruby version bump and runs `bundle update <gems>`, opening a focused `fix:` PR. When `gems` is blank (Monday schedule or manual dispatch): bumps `.ruby-version`, runs `bundle update --all`, and opens a `chore:` PR. In both cases the workflow installs Oracle Instant Client, runs the full CI job, and auto-merges on success.
 
 Markdown-only pushes skip CI and deploy (via `paths-ignore`).
 
