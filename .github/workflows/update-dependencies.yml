@@ -53,6 +53,22 @@ jobs:
           ruby-version: ${{ steps.ruby.outputs.latest }}
           bundler-cache: false
 
+      - name: Install Oracle Instant Client
+        run: |
+          sudo apt-get install -y --no-install-recommends libaio1t64 unzip
+          curl -fsSL https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-basiclite-linux.x64-21.13.0.0.0dbru.zip -o /tmp/ic.zip
+          curl -fsSL https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-sdk-linux.x64-21.13.0.0.0dbru.zip -o /tmp/ic-sdk.zip
+          sudo unzip -q /tmp/ic.zip -d /opt/oracle
+          sudo unzip -q /tmp/ic-sdk.zip -d /opt/oracle
+          rm /tmp/ic.zip /tmp/ic-sdk.zip
+          sudo ln -s /opt/oracle/instantclient_21_13/sdk/include /opt/oracle/instantclient_21_13/include
+          sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1 || true
+          echo /opt/oracle/instantclient_21_13 | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf
+          sudo ldconfig
+          echo "ORACLE_HOME=/opt/oracle/instantclient_21_13" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/opt/oracle/instantclient_21_13" >> $GITHUB_ENV
+          echo "BUNDLE_BUILD__RUBY_OCI8=--with-instant-client-dir=/opt/oracle/instantclient_21_13 --with-instant-client-include=/opt/oracle/instantclient_21_13/sdk/include --with-instant-client-lib=/opt/oracle/instantclient_21_13" >> $GITHUB_ENV
+
       - name: Update all gems
         run: |
           bundle config set --local frozen false
