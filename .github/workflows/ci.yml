@@ -38,7 +38,11 @@ jobs:
       - name: Trigger targeted dependency update to remediate vulnerabilities
         if: steps.audit.outcome == 'failure' && github.event_name == 'push'
         run: |
-          gems=$(grep "^Name:" /tmp/audit.txt | awk '{print $2}' | sort -u | tr '\n' ' ' | xargs)
+          gems=$(awk '/^Name:/{print $2}' /tmp/audit.txt | sort -u | xargs)
+          if [ -z "$gems" ]; then
+            echo "No gem names found in audit output (possible advisory DB error); skipping dispatch."
+            exit 0
+          fi
           echo "Vulnerable gems: $gems"
           gh workflow run update-dependencies.yml --field gems="$gems"
         env:
@@ -47,7 +51,11 @@ jobs:
       - name: Fail if vulnerabilities found
         if: steps.audit.outcome == 'failure'
         run: |
-          echo "Vulnerabilities found — update-dependencies workflow dispatched to remediate."
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            echo "Vulnerabilities found — update-dependencies workflow dispatched to remediate."
+          else
+            echo "Vulnerabilities found — push to main to trigger automated remediation."
+          fi
           exit 1
 
   scan_js:
