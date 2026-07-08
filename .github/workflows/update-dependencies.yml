@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '0 9 * * 1'  # Every Monday at 9am UTC
   workflow_dispatch:
+    inputs:
+      gems:
+        description: 'Space-separated gem names to update (leave blank for full weekly update)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -35,6 +40,7 @@ jobs:
 
       - name: Find latest stable Ruby
         id: ruby
+        if: inputs.gems == ''
         run: |
           today=$(date +%Y-%m-%d)
           latest=$(curl -fsSL "https://endoflife.date/api/ruby.json" | \
@@ -45,9 +51,11 @@ jobs:
           echo "current=$(cat .ruby-version)" >> "$GITHUB_OUTPUT"
 
       - name: Update .ruby-version
+        if: inputs.gems == ''
         run: echo "${{ steps.ruby.outputs.latest }}" > .ruby-version
 
       - name: Set up updated Ruby
+        if: inputs.gems == ''
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ steps.ruby.outputs.latest }}
@@ -69,10 +77,10 @@ jobs:
           echo "LD_LIBRARY_PATH=/opt/oracle/instantclient_21_13" >> $GITHUB_ENV
           echo "BUNDLE_BUILD__RUBY_OCI8=--with-instant-client-dir=/opt/oracle/instantclient_21_13 --with-instant-client-include=/opt/oracle/instantclient_21_13/sdk/include --with-instant-client-lib=/opt/oracle/instantclient_21_13" >> $GITHUB_ENV
 
-      - name: Update all gems
+      - name: Update gems
         run: |
           bundle config set --local frozen false
-          bundle update --all
+          bundle update ${{ inputs.gems || '--all' }}
           bundle list | grep '* rails ' | awk '{print $3}' | tr -d '()' > /tmp/rails-version.txt
 
       - name: Audit updated dependencies
@@ -86,6 +94,10 @@ jobs:
       - name: Commit and push
         id: commit
         if: steps.diff.outputs.changed == 'true'
+        env:
+          GEMS: ${{ inputs.gems }}
+          RUBY_LATEST: ${{ steps.ruby.outputs.latest }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -93,31 +105,48 @@ jobs:
           branch="automated/dependencies-$(date +%Y-%m-%d)"
           git checkout -b "$branch"
           git add .ruby-version Gemfile.lock
-          git commit -m "chore: update Ruby to ${{ steps.ruby.outputs.latest }} and gem dependencies"
+
+          if [ -n "$GEMS" ]; then
+            git commit -m "fix: update vulnerable gems ($GEMS)"
+          else
+            git commit -m "chore: update Ruby to $RUBY_LATEST and gem dependencies"
+          fi
+
           git push --force origin "$branch"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Open pull request
         id: pr
         if: steps.diff.outputs.changed == 'true'
+        env:
+          GEMS: ${{ inputs.gems }}
+          RUBY_CURRENT: ${{ steps.ruby.outputs.current }}
+          RUBY_LATEST: ${{ steps.ruby.outputs.latest }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           rails_version=$(cat /tmp/rails-version.txt)
           pre_audit=$(cat /tmp/pre-audit.txt)
           post_audit=$(cat /tmp/post-audit.txt)
           branch="${{ steps.commit.outputs.branch }}"
 
+          if [ -n "$GEMS" ]; then
+            title="fix: update vulnerable gems ($GEMS)"
+            version_row="| Gems updated | ${GEMS} |"
+          else
+            title="chore: update Ruby ${RUBY_CURRENT} → ${RUBY_LATEST} and gems"
+            version_row="| Ruby | ${RUBY_CURRENT} → ${RUBY_LATEST} |
+          | Rails | ${rails_version} |"
+          fi
+
           existing=$(gh pr list --head "$branch" --json number --jq '.[0].number // empty')
           if [ -z "$existing" ]; then
             gh pr create \
-              --title "chore: update Ruby ${{ steps.ruby.outputs.current }} → ${{ steps.ruby.outputs.latest }} and gems" \
+              --title "$title" \
               --body "## Automated dependency update
 
           | | Version |
           |---|---|
-          | Ruby | ${{ steps.ruby.outputs.current }} → ${{ steps.ruby.outputs.latest }} |
-          | Rails | ${rails_version} |
+          ${version_row}
 
           ### Pre-update vulnerability audit
           \`\`\`
@@ -134,8 +163,6 @@ jobs:
 
           pr_number=$(gh pr list --head "$branch" --json number --jq '.[0].number')
           echo "number=$pr_number" >> "$GITHUB_OUTPUT"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   ci:
     name: Run CI

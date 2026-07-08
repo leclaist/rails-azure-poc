@@ -30,12 +30,17 @@ jobs:
 
       - name: Scan for known security vulnerabilities in gems used
         id: audit
-        run: bin/bundler-audit
+        run: |
+          bin/bundler-audit 2>&1 | tee /tmp/audit.txt
+          exit ${PIPESTATUS[0]}
         continue-on-error: true
 
-      - name: Trigger dependency update to remediate vulnerabilities
+      - name: Trigger targeted dependency update to remediate vulnerabilities
         if: steps.audit.outcome == 'failure' && github.event_name == 'push'
-        run: gh workflow run update-dependencies.yml
+        run: |
+          gems=$(grep "^Name:" /tmp/audit.txt | awk '{print $2}' | sort -u | tr '\n' ' ' | xargs)
+          echo "Vulnerable gems: $gems"
+          gh workflow run update-dependencies.yml --field gems="$gems"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
