@@ -11,6 +11,8 @@ on:
 jobs:
   scan_ruby:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     env:
       BUNDLE_WITHOUT: oracle
 
@@ -27,7 +29,21 @@ jobs:
         run: bin/brakeman --no-pager
 
       - name: Scan for known security vulnerabilities in gems used
+        id: audit
         run: bin/bundler-audit
+        continue-on-error: true
+
+      - name: Trigger dependency update to remediate vulnerabilities
+        if: steps.audit.outcome == 'failure' && github.event_name == 'push'
+        run: gh workflow run update-dependencies.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fail if vulnerabilities found
+        if: steps.audit.outcome == 'failure'
+        run: |
+          echo "Vulnerabilities found — update-dependencies workflow dispatched to remediate."
+          exit 1
 
   scan_js:
     runs-on: ubuntu-latest
