@@ -89,6 +89,34 @@ The wallet lives in `config/oracle/wallet/` (gitignored). It is baked into the p
 
 Connection is via TNS alias `y9y9gxseadutvhab_tp` (Transaction Processing profile). `TNS_ADMIN` is set to `/rails/config/oracle/wallet` in the Container App.
 
+## Building and pushing an image
+
+The `Deploy to Azure` workflow does this automatically on every push to `main` (see [CI / CD](#ci--cd)). To build and push manually:
+
+### `az acr build` (recommended)
+
+Builds on Azure's infrastructure — no local Docker required, and no architecture mismatch to worry about on Apple Silicon. This is what the deploy workflow uses.
+
+```bash
+az acr build \
+  --registry railsazurepocacr \
+  --image rails-azure-poc:latest \
+  .
+```
+
+### Local Docker build + push
+
+```bash
+az acr login --name railsazurepocacr
+
+docker build -t railsazurepocacr.azurecr.io/rails-azure-poc:latest .
+docker push railsazurepocacr.azurecr.io/rails-azure-poc:latest
+```
+
+Container Apps runs `linux/amd64`. If you're building on Apple Silicon, add `--platform linux/amd64` to the `docker build` or the pushed image won't run.
+
+> The production `Dockerfile` bakes in the Oracle wallet from `config/oracle/wallet/` — see [Oracle setup](#oracle-setup) before building an image meant to actually run.
+
 ## CI / CD
 
 Every push to `main` triggers two workflows in parallel:
