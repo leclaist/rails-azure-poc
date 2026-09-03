@@ -1,18 +1,16 @@
 default: &default
-  adapter: oracle_enhanced
+  adapter: sqlite3
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  timeout: 5000
 
-# Local: docker-compose oracle service (oracle:1521)
-# OCI ADB: oracle-enhanced://ADMIN:pass@hostname:1521/dbname_high
 development:
   <<: *default
-  url: <%= ENV.fetch("DATABASE_URL", "oracle-enhanced://rails_app:rails_app_secret@localhost:1521/FREEPDB1") %>
+  database: storage/development.sqlite3
 
 test:
   <<: *default
-  url: <%= ENV.fetch("DATABASE_URL", "oracle-enhanced://rails_app:rails_app_secret@localhost:1521/FREEPDB1") %>
+  database: storage/test.sqlite3
 
 production:
   <<: *default
-  username: <%= ENV.fetch("DB_USERNAME", "admin") %>
-  password: <%= ENV.fetch("DB_PASSWORD", "dummy") %>
-  database: <%= ENV.fetch("DB_SERVICE", "dummy") %>
+  database: storage/production.sqlite3

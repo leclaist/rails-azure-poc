@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "== Building development image (downloads Oracle Instant Client — takes a few minutes on first run) =="
+echo "== Building development image (takes a minute or two on first run) =="
 docker-compose build web
 
 echo ""

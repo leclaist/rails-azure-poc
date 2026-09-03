@@ -6,12 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A minimal Rails 8 proof-of-concept for deploying to **Azure Container Apps** backed by **Oracle Autonomous Database** (OCI). The entire app is one route (`/`) that writes a `Visit` record to Oracle and renders the visit count and recent history. Everything is stripped to the minimum needed to validate the infra pattern.
 
+> **`no-db` branch note:** this branch replaces Oracle with SQLite for local dev/test (Gemfile, `config/database.yml`, `docker-compose.yml`, `Dockerfile.dev`) so the app can run without Docker Oracle or Instant Client. CI (`.github/workflows/`), the production `Dockerfile`, the Oracle wallet, and Terraform in `infra/` were intentionally left untouched — they still assume Oracle and would need separate updates before this branch could deploy to Azure. Everything below describes the Oracle-backed setup except where noted.
+
 ## Commands
 
-All development runs inside Docker — no local Oracle Instant Client required. Oracle Instant Client is downloaded and compiled into the Docker images.
+All development runs inside Docker.
 
 ```bash
-# Start the app (builds image on first run, ~3-5 min)
+# Start the app (builds image on first run)
 docker-compose up
 
 # Run tests
@@ -23,13 +25,13 @@ docker-compose build web && docker-compose up
 
 The app runs at http://localhost:3000. The `test` service is in a `test` profile so it doesn't start with the default `up`.
 
-**If Oracle data volume predates the `rails_app` user:** `docker compose down -v && docker compose up`
+*(On `no-db`: no external DB container or Oracle Instant Client download — SQLite lives in `storage/*.sqlite3`, gitignored.)*
 
 ## Architecture
 
 ### Database
 
-All environments use `oracle_enhanced` adapter. No SQLite anywhere.
+All environments use `oracle_enhanced` adapter. No SQLite anywhere. **Except on `no-db`**, where all environments use the `sqlite3` adapter instead (`config/database.yml` → `storage/{development,test,production}.sqlite3`) and there is no Oracle service, wallet, or `DATABASE_URL` override.
 
 - **Local**: `gvenzl/oracle-free:23-slim-faststart` via Docker Compose on port 1521, user `rails_app`/`rails_app_secret`, service `FREEPDB1`
 - **Production**: OCI Autonomous Transaction Processing, mTLS with a wallet at `config/oracle/wallet/` (gitignored), TNS alias `y9y9gxseadutvhab_tp`, `TNS_ADMIN=/rails/config/oracle/wallet`
@@ -37,7 +39,7 @@ All environments use `oracle_enhanced` adapter. No SQLite anywhere.
 
 ### The oracle gem group
 
-`ruby-oci8` and `activerecord-oracle_enhanced-adapter` live in `group :oracle` in the Gemfile. Jobs that don't need Oracle (Brakeman, RuboCop, bundler-audit, importmap audit) set `BUNDLE_WITHOUT=oracle` to skip the native extension entirely. The `test` job and `update-dependencies` job must install Oracle Instant Client before running `bundle install` / `bundle update`.
+`ruby-oci8` and `activerecord-oracle_enhanced-adapter` live in `group :oracle` in the Gemfile. Jobs that don't need Oracle (Brakeman, RuboCop, bundler-audit, importmap audit) set `BUNDLE_WITHOUT=oracle` to skip the native extension entirely. The `test` job and `update-dependencies` job must install Oracle Instant Client before running `bundle install` / `bundle update`. **On `no-db` this group doesn't exist** — the Gemfile has a plain `sqlite3` gem instead.
 
 ### CI/CD
 
